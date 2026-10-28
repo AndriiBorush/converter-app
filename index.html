@@ -14,18 +14,23 @@
 :root{--bg:#0b0d12;--card:#12151c;--line:#1f232d;--key:#171a22;--keyp:#252a35;--text:#eef0f4;--muted:#8a909c;--gold:#d6b48a;--red:#e5484d}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;overscroll-behavior:none}
-body{display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 10px)}
-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
-#upd{color:var(--muted);font-size:14px;line-height:1.35}
+body{display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 28px) 16px calc(env(safe-area-inset-bottom) + 10px)}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+#upd{color:#b4bac5;font-size:15px;line-height:1.4}
 #upd b{font-weight:400}
 #upd.err{color:#f0a35e}
-.iconbtn{width:52px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--text);display:grid;place-items:center}
+.iconbtn{width:60px;height:48px;border-radius:14px;border:1px solid var(--line);background:var(--card);color:var(--text);display:grid;place-items:center}
 .iconbtn svg{width:20px;height:20px}
 .spin svg{animation:sp .8s linear infinite}@keyframes sp{to{transform:rotate(360deg)}}
 #list{flex:1;min-height:0;overflow-y:auto;border:1px solid var(--line);border-radius:16px;background:var(--card)}
 .row{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
-.del{position:absolute;inset:0;background:var(--red);display:flex;align-items:center;padding-left:24px;font-weight:600}
+.del{position:absolute;inset:0;background:var(--red);display:flex;align-items:center;padding:0 24px;font-weight:600}
+.del.r{justify-content:flex-end}
+.row.lift{z-index:3;overflow:visible;border-bottom-color:transparent}
+.row.lift .fg{background:#232835;box-shadow:0 8px 24px rgba(0,0,0,.5);border-radius:12px;transform:scale(1.03)}
+.row.lift .del{display:none}
+.row.shift{transition:transform .15s}
 .fg{position:relative;background:var(--card);display:flex;align-items:center;gap:14px;padding:13px 16px;touch-action:pan-y}
 .fg.anim{transition:transform .2s}
 .flag{width:36px;height:36px;border-radius:50%;overflow:hidden;display:grid;place-items:center;font-size:50px;line-height:1;flex:none;background:#2a2f3a}
@@ -143,31 +148,56 @@ let bsT;
 $('#bs').addEventListener('touchstart',()=>{bsT=setTimeout(()=>{st.input='0';st.fresh=false;render()},500)},{passive:true});
 ['touchend','touchcancel'].forEach(ev=>$('#bs').addEventListener(ev,()=>clearTimeout(bsT)));
 
-// Нажатие на строку = сделать валюту активной (число переносится, первая цифра заменит его). Свайп вправо = удалить.
+// Нажатие на строку = сделать валюту активной (число переносится, первая цифра заменит его).
+// Свайп вправо или влево = удалить. Долгое нажатие = поднять валюту и перетащить выше/ниже.
 let sw=null;
 $('#list').addEventListener('pointerdown',e=>{
   const row=e.target.closest('.row');if(!row)return;
-  sw={row,fg:row.querySelector('.fg'),x:e.clientX,y:e.clientY,dx:0,drag:false};
+  sw={row,fg:row.querySelector('.fg'),x:e.clientX,y:e.clientY,dx:0,drag:false,move:false};
+  sw.timer=setTimeout(()=>startMove(sw),450);
 });
+function startMove(s){
+  if(sw!==s||s.drag)return;
+  s.move=true;s.rows=[...document.querySelectorAll('#list .row')];s.from=s.rows.indexOf(s.row);s.to=s.from;s.h=s.row.offsetHeight;
+  s.row.classList.add('lift');s.rows.forEach(r=>r!==s.row&&r.classList.add('shift'));
+  if(navigator.vibrate)navigator.vibrate(15);
+}
+// Пока валюта поднята, страница не должна прокручиваться.
+document.addEventListener('touchmove',e=>{if(sw&&(sw.move||sw.drag))e.preventDefault()},{passive:false});
 window.addEventListener('pointermove',e=>{
   if(!sw)return;
   const dx=e.clientX-sw.x,dy=e.clientY-sw.y;
-  if(!sw.drag&&Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy))sw.drag=true;
-  if(!sw.drag){if(Math.abs(dy)>10)sw=null;return}
-  sw.dx=Math.max(0,dx);sw.fg.style.transform=`translateX(${sw.dx}px)`;
+  if(sw.move){
+    const max=(sw.rows.length-1-sw.from)*sw.h,min=-sw.from*sw.h;
+    const y=Math.max(min,Math.min(max,dy));
+    sw.row.style.transform=`translateY(${y}px)`;
+    sw.to=Math.max(0,Math.min(sw.rows.length-1,sw.from+Math.round(y/sw.h)));
+    sw.rows.forEach((r,i)=>{if(r===sw.row)return;
+      let t=0;if(i>sw.from&&i<=sw.to)t=-sw.h;else if(i<sw.from&&i>=sw.to)t=sw.h;
+      r.style.transform=t?`translateY(${t}px)`:''});
+    return;
+  }
+  if(!sw.drag&&Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)){sw.drag=true;clearTimeout(sw.timer)}
+  if(!sw.drag){if(Math.abs(dy)>10||Math.abs(dx)>10){clearTimeout(sw.timer);sw=null}return}
+  sw.dx=dx;sw.fg.style.transform=`translateX(${dx}px)`;
+  const d=sw.row.querySelector('.del');d.classList.toggle('r',dx<0);
 });
 window.addEventListener('pointerup',()=>{
-  if(!sw)return;const {row,fg,dx,drag}=sw;sw=null;
-  const c=row.dataset.c;
+  if(!sw)return;const s=sw;sw=null;clearTimeout(s.timer);
+  const {row,fg,dx,drag}=s,c=row.dataset.c;
+  if(s.move){
+    const [x]=st.list.splice(s.from,1);st.list.splice(s.to,0,x);render();return;
+  }
   if(!drag){activate(c);return}
   fg.classList.add('anim');
-  if(dx>row.offsetWidth*0.35){
+  if(Math.abs(dx)>row.offsetWidth*0.35){
     if(st.list.length<=1){fg.style.transform='';toast('Нужна хотя бы одна валюта');return}
-    fg.style.transform=`translateX(${row.offsetWidth}px)`;
+    fg.style.transform=`translateX(${dx>0?'':'-'}${row.offsetWidth}px)`;
     setTimeout(()=>remove(c),180);
   }else fg.style.transform='';
 });
-window.addEventListener('pointercancel',()=>{if(sw){sw.fg.style.transform='';sw=null}});
+window.addEventListener('pointercancel',()=>{if(!sw)return;clearTimeout(sw.timer);if(sw.move)render();else sw.fg.style.transform='';sw=null});
+$('#list').addEventListener('contextmenu',e=>e.preventDefault());
 
 function activate(c){
   if(c===st.active){st.fresh=!st.fresh?true:st.fresh;render();return}
