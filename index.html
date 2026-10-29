@@ -13,8 +13,8 @@
 <style>
 :root{--bg:#0b0d12;--card:#12151c;--line:#1f232d;--key:#171a22;--keyp:#252a35;--text:#eef0f4;--muted:#8a909c;--gold:#d6b48a;--red:#e5484d}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;overscroll-behavior:none}
-body{display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 28px) 16px calc(env(safe-area-inset-bottom) + 4px)}
+html,body{margin:0;height:100%;overflow:hidden;touch-action:manipulation;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;overscroll-behavior:none}
+body{position:fixed;inset:0;height:auto;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 28px) 16px calc(env(safe-area-inset-bottom) + 4px)}
 header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 #upd{color:#b4bac5;font-size:15px;line-height:1.4}
 #upd b{font-weight:400}
